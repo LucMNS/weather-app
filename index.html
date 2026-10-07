@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+    <title>Weather App</title>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        <span class="badge">Previsão do tempo</span>
+      </div>
+
+      <div class="search">
+        <input
+          id="cityInput"
+          type="text"
+          placeholder="Digite o nome da cidade"
+          spellcheck="false"
+        />
+        <button id="searchBtn" aria-label="Buscar clima">
+          <img src="img/search.png" alt="Buscar" />
+        </button>
+      </div>
+
+      <p id="errorMessage" class="error">Cidade não encontrada.</p>
+
+      <div id="weather" class="weather">
+        <img
+          src="img/rain.png"
+          class="weather-icon"
+          id="weatherIcon"
+          alt="Ícone do clima"
+        />
+        <h1 class="temp" id="temp">--°C</h1>
+        <h2 class="city" id="cityName">Cidade</h2>
+
+        <div class="details">
+          <div class="col">
+            <img src="img/humidity.png" alt="Umidade" />
+            <div>
+              <p class="humidity" id="humidity">--%</p>
+              <p>Umidade</p>
+            </div>
+          </div>
+
+          <div class="col">
+            <img src="img/wind.png" alt="Vento" />
+            <div>
+              <p class="wind" id="wind">-- km/h</p>
+              <p>Vento</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const geocodingUrl =
+        "https://geocoding-api.open-meteo.com/v1/search?name=";
+      const weatherUrl =
+        "https://api.open-meteo.com/v1/forecast?current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto";
+
+      const cityInput = document.getElementById("cityInput");
+      const searchBtn = document.getElementById("searchBtn");
+      const weatherBox = document.getElementById("weather");
+      const errorMessage = document.getElementById("errorMessage");
+      const weatherIcon = document.getElementById("weatherIcon");
+      const temp = document.getElementById("temp");
+      const cityName = document.getElementById("cityName");
+      const humidity = document.getElementById("humidity");
+      const wind = document.getElementById("wind");
+
+      const iconMap = {
+        0: "clear.png",
+        1: "clouds.png",
+        2: "clouds.png",
+        3: "clouds.png",
+        45: "mist.png",
+        48: "mist.png",
+        51: "drizzle.png",
+        53: "drizzle.png",
+        55: "drizzle.png",
+        56: "drizzle.png",
+        57: "drizzle.png",
+        61: "rain.png",
+        63: "rain.png",
+        65: "rain.png",
+        66: "rain.png",
+        67: "rain.png",
+        71: "snow.png",
+        73: "snow.png",
+        75: "snow.png",
+        77: "snow.png",
+        80: "rain.png",
+        81: "rain.png",
+        82: "rain.png",
+        85: "snow.png",
+        86: "snow.png",
+        95: "rain.png",
+        96: "rain.png",
+        99: "rain.png",
+      };
+
+      function setWeatherIcon(code) {
+        const iconFile = iconMap[code] || "clouds.png";
+        weatherIcon.src = `img/${iconFile}`;
+      }
+
+      function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.classList.add("show");
+        weatherBox.classList.remove("show");
+      }
+
+      function hideError() {
+        errorMessage.classList.remove("show");
+      }
+
+      async function fetchWeather(city) {
+        const geoResponse = await fetch(
+          `${geocodingUrl}${encodeURIComponent(city)}&count=1&language=pt&format=json`,
+        );
+
+        if (!geoResponse.ok) {
+          throw new Error("Não foi possível buscar a cidade.");
+        }
+
+        const geoData = await geoResponse.json();
+
+        if (!geoData.results || geoData.results.length === 0) {
+          throw new Error("Cidade não encontrada.");
+        }
+
+        const { name, country, latitude, longitude } = geoData.results[0];
+        const weatherResponse = await fetch(
+          `${weatherUrl}&latitude=${latitude}&longitude=${longitude}`,
+        );
+
+        if (!weatherResponse.ok) {
+          throw new Error("Não foi possível carregar os dados do clima.");
+        }
+
+        const data = await weatherResponse.json();
+        const current = data.current;
+
+        setWeatherIcon(current.weather_code);
+        temp.textContent = `${Math.round(current.temperature_2m)}°C`;
+        cityName.textContent = `${name}, ${country}`;
+        humidity.textContent = `${current.relative_humidity_2m}%`;
+        wind.textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+
+        weatherBox.classList.add("show");
+        hideError();
+      }
+
+      function handleSearch() {
+        const city = cityInput.value.trim();
+
+        if (!city) {
+          showError("Digite o nome de uma cidade.");
+          return;
+        }
+
+        fetchWeather(city).catch((error) => {
+          showError(error.message);
+        });
+      }
+
+      searchBtn.addEventListener("click", handleSearch);
+      cityInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          handleSearch();
+        }
+      });
+
+      fetchWeather("Bangalore").catch(() => {
+        showError("Não foi possível carregar o clima inicial.");
+      });
+    </script>
+  </body>
+</html>
